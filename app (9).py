@@ -16,15 +16,16 @@ st.title("🚗 Prédiction du prix de vente des véhicules")
 st.write("Application utilisant un modèle XGBoost.")
 
 # CHARGEMENT DES MODELES
-BASE_DIR = Path(__file__).resolve().parent
+st.write("Dossier utilisé :", str(BASE_DIR))
+st.write("Fichiers trouvés :", [f.name for f in BASE_DIR.iterdir()])
 
 @st.cache_resource
 def load_models():
-    model = jb.load(BASE_DIR / "xgb_model.joblib")
-    scaler = jb.load(BASE_DIR / "scaler.joblib")
     encoders = jb.load(BASE_DIR / "encoders.joblib")
+    scaler = jb.load(BASE_DIR / "scaler.joblib")
     uniques = jb.load(BASE_DIR / "uniques.joblib")
-    return model, scaler, encoders, uniques
+    xgb_model = jb.load(BASE_DIR / "xgb_model.joblib")
+    return xgb_model, scaler, encoders, uniques
 
 try:
     xgb_model, scaler, encoders, uniques = load_models()
