@@ -1,19 +1,21 @@
+
 import streamlit as st
 import joblib as jb
+import pandas as pd
 import numpy as np
 from pathlib import Path
 
-# 1. CONFIGURATION
+# CONFIGURATION
 st.set_page_config(
     page_title="Prédiction du prix d'une voiture",
     page_icon="🚗",
-    layout="centered"
+    layout="wide"
 )
 
-st.title("🚗 Prédiction du Prix de Vente d'un Véhicule")
-st.write("Cette application utilise un modèle XGBoost pour prédire le prix de vente d'une voiture.")
+st.title("🚗 Prédiction du prix de vente des véhicules")
+st.write("Application utilisant un modèle XGBoost.")
 
-# 2. CHARGEMENT DES FICHIERS
+# CHARGEMENT DES MODELES
 BASE_DIR = Path(__file__).resolve().parent
 
 @st.cache_resource
@@ -22,7 +24,6 @@ def load_models():
     scaler = jb.load(BASE_DIR / "scaler.joblib")
     encoders = jb.load(BASE_DIR / "encoders.joblib")
     uniques = jb.load(BASE_DIR / "uniques.joblib")
-
     return model, scaler, encoders, uniques
 
 try:
@@ -31,57 +32,160 @@ except Exception as e:
     st.error(f"Erreur lors du chargement des modèles : {e}")
     st.stop()
 
-# 3. FORMULAIRE
-st.subheader("Estimer le prix d'un véhicule")
 
-Kms_Driven = st.number_input(
-    "Kilométrage (Kms Driven)",
-    min_value=0,
-    value=50000
+# PREPARATION DES DONNEES
+def prepare_data(df):
+    df = df.copy()
+
+    df["Fuel_Type"] = encoders[0].transform(df["Fuel_Type"])
+    df["Seller_Type"] = encoders[1].transform(df["Seller_Type"])
+    df["Transmission"] = encoders[2].transform(df["Transmission"])
+
+    columns = [
+        "Kms_Driven",
+        "Present_Price",
+        "Fuel_Type",
+        "Seller_Type",
+        "Transmission",
+        "age"
+    ]
+
+    X = df[columns].to_numpy()
+
+    if scaler.n_features_in_ == X.shape[1]:
+        X = scaler.transform(X)
+
+    return X
+
+
+def predict_prices(df):
+    X = prepare_data(df)
+    return xgb_model.predict(X)
+
+
+# MENU LATERAL
+choix = st.sidebar.radio(
+    "Choisir le type de prédiction",
+    ["Prédiction simple", "Prédiction multiple"]
 )
 
-Present_Price = st.number_input(
-    "Prix d'origine (en k$)",
-    min_value=0.0,
-    value=10.0
-)
 
-fuel_type_val = st.selectbox("Type de carburant", uniques[0])
-seller_type_val = st.selectbox("Type de vendeur", uniques[1])
-transmission_val = st.selectbox("Boîte de vitesse", uniques[2])
+# =====================================
+# PREDICTION SIMPLE
+# =====================================
+if choix == "Prédiction simple":
 
-age_val = st.number_input(
-    "Âge du véhicule (années)",
-    min_value=0,
-    value=5
-)
+    st.header("🚘 Prédiction pour une voiture")
 
-# 4. PRÉDICTION
-if st.button("Prédire le prix"):
+    with st.form("formulaire_simple"):
 
-    try:
-        fuel_type_encoded = encoders[0].transform([fuel_type_val])[0]
-        seller_type_encoded = encoders[1].transform([seller_type_val])[0]
-        transmission_encoded = encoders[2].transform([transmission_val])[0]
+        kms = st.number_input("Kilométrage", min_value=0, value=50000)
+        prix = st.number_input("Prix d'origine (k$)", min_value=0.0, value=10.0)
 
-        x_new = np.array([[
-            Kms_Driven,
-            Present_Price,
-            fuel_type_encoded,
-            seller_type_encoded,
-            transmission_encoded,
-            age_val
-        ]])
+        carburant = st.selectbox("Type de carburant", uniques[0])
+        vendeur = st.selectbox("Type de vendeur", uniques[1])
+        transmission = st.selectbox("Boîte de vitesse", uniques[2])
 
-        # Vérifier le prétraitement utilisé pendant l'entraînement
-        if hasattr(scaler, "n_features_in_") and scaler.n_features_in_ == x_new.shape[1]:
-            x_new = scaler.transform(x_new)
+        age = st.number_input("Âge du véhicule", min_value=0, value=5)
 
-        y_pred = xgb_model.predict(x_new)[0]
+        bouton = st.form_submit_button("Prédire le prix")
 
-        st.success(
-            f"Le prix de vente estimé est de : **{float(y_pred):.2f} k$**"
-        )
+    if bouton:
+        try:
+            voiture = pd.DataFrame([{
+                "Kms_Driven": kms,
+                "Present_Price": prix,
+                "Fuel_Type": carburant,
+                "Seller_Type": vendeur,
+                "Transmission": transmission,
+                "age": age
+            }])
 
-    except Exception as e:
-        st.error(f"Erreur lors de la prédiction : {e}")
+            prediction = predict_prices(voiture)
+
+            st.success(
+                f"Prix de vente estimé : {float(prediction[0]):.2f} k$"
+            )
+
+        except Exception as e:
+            st.error(f"Erreur lors de la prédiction : {e}")
+
+
+# =====================================
+# PREDICTION MULTIPLE
+# =====================================
+elif choix == "Prédiction multiple":
+
+    st.header("📊 Prédiction pour plusieurs voitures")
+
+    st.write("Importez un fichier CSV contenant plusieurs véhicules.")
+
+    st.info("""
+    Le fichier CSV doit contenir les colonnes suivantes :
+    Kms_Driven, Present_Price, Fuel_Type, Seller_Type,
+    Transmission et age.
+    """)
+
+    fichier = st.file_uploader("Importer un fichier CSV", type=["csv"])
+
+    if fichier is not None:
+
+        try:
+            donnees = pd.read_csv(fichier)
+
+            st.subheader("Aperçu des données")
+            st.dataframe(donnees.head())
+
+            colonnes_requises = [
+                "Kms_Driven",
+                "Present_Price",
+                "Fuel_Type",
+                "Seller_Type",
+                "Transmission",
+                "age"
+            ]
+
+            manquantes = [
+                col for col in colonnes_requises
+                if col not in donnees.columns
+            ]
+
+            if manquantes:
+                st.error(f"Colonnes manquantes : {manquantes}")
+
+            elif st.button("Lancer les prédictions"):
+
+                resultats = donnees.copy()
+                resultats["Prix_estime"] = predict_prices(donnees)
+
+                st.subheader("Résultats")
+                st.dataframe(resultats)
+
+                csv = resultats.to_csv(index=False).encode("utf-8")
+
+                st.download_button(
+                    "Télécharger les résultats",
+                    data=csv,
+                    file_name="predictions_voitures.csv",
+                    mime="text/csv"
+                )
+
+                st.success(
+                    f"{len(resultats)} véhicules traités avec succès."
+                )
+
+        except Exception as e:
+            st.error(f"Erreur : {e}")
+
+
+
+
+
+
+
+    
+
+        
+        
+
+   
