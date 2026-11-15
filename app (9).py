@@ -16,8 +16,7 @@ st.title("🚗 Prédiction du prix de vente des véhicules")
 st.write("Application utilisant un modèle XGBoost.")
 
 # CHARGEMENT DES MODELES
-st.write("Dossier utilisé :", str(BASE_DIR))
-st.write("Fichiers trouvés :", [f.name for f in BASE_DIR.iterdir()])
+BASE_DIR = Path(__file__).resolve().parent
 
 @st.cache_resource
 def load_models():
