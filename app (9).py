@@ -48,6 +48,9 @@ x_new = np.array([
     transmission_encoded,
     age_val
 ]).reshape(1, -1)
+st.write("Chemin :", str(BASE_DIR))
+st.write("Fichier trouvé :", (BASE_DIR / "encoders.joblib").exists())
+st.write("Contenu du dossier :", [f.name for f in BASE_DIR.iterdir()])
 
 
 # MENU LATERAL
