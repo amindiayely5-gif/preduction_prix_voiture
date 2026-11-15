@@ -37,10 +37,11 @@ except Exception as e:
 def prepare_data(df):
     df = df.copy()
 
-    df["Fuel_Type"] = encoders[0].transform(df["Fuel_Type"])
-    df["Seller_Type"] = encoders[1].transform(df["Seller_Type"])
-    df["Transmission"] = encoders[2].transform(df["Transmission"])
+    df["Fuel_Type"] = encoders[0].transform(df["Fuel_Type"].astype(str))
+    df["Seller_Type"] = encoders[1].transform(df["Seller_Type"].astype(str))
+    df["Transmission"] = encoders[2].transform(df["Transmission"].astype(str))
 
+    return df
     columns = [
         "Kms_Driven",
         "Present_Price",
