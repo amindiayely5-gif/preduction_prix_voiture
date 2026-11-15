@@ -24,7 +24,7 @@ def load_models():
     scaler = jb.load(BASE_DIR / "scaler.joblib")
     uniques = jb.load(BASE_DIR / "uniques.joblib")
     xgb_model = jb.load(BASE_DIR / "xgb_model.joblib")
-    return xgb_model, scaler, encoders, uniques
+    return encoders, scaler, encoders, uniques,xgb_model
 
 try:
     xgb_model, scaler, encoders, uniques = load_models()
@@ -33,35 +33,21 @@ except Exception as e:
     st.stop()
 
 
+
+   # ENCODAGE DES VARIABLES
+fuel_type_encoded = encoders[0].transform([fuel_type_val])[0]
+seller_type_encoded = encoders[1].transform([seller_type_val])[0]
+transmission_encoded = encoders[2].transform([transmission_val])[0]
+
 # PREPARATION DES DONNEES
-def prepare_data(df):
-    df = df.copy()
-
-    df["Fuel_Type"] = encoders[0].transform(df["Fuel_Type"].astype(str))
-    df["Seller_Type"] = encoders[1].transform(df["Seller_Type"].astype(str))
-    df["Transmission"] = encoders[2].transform(df["Transmission"].astype(str))
-
-    return df
-    columns = [
-        "Kms_Driven",
-        "Present_Price",
-        "Fuel_Type",
-        "Seller_Type",
-        "Transmission",
-        "age"
-    ]
-
-    X = df[columns].to_numpy()
-
-    if scaler.n_features_in_ == X.shape[1]:
-        X = scaler.transform(X)
-
-    return X
-
-
-def predict_prices(df):
-    X = prepare_data(df)
-    return xgb_model.predict(X)
+x_new = np.array([
+    Kms_Driven,
+    Present_Price,
+    fuel_type_encoded,
+    seller_type_encoded,
+    transmission_encoded,
+    age_val
+]).reshape(1, -1)
 
 
 # MENU LATERAL
